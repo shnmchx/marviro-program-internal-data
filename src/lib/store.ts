@@ -768,12 +768,12 @@ export const useAdminStore = create<AdminStore>()(
           activePage: 'dashboard',
           setActivePage: (page) => set({ activePage: page }),
 
+          // ==================== SYNC TO NEON ====================
           syncToNeon: async () => {
             if (get().isSyncing) return false;
             set({ isSyncing: true });
-
             try {
-              const state = get(); // Ambil state TERBARU
+              const state = get();
               const allData = {
                 nikInternals: state.nikInternals || [],
                 nikEksternals: state.nikEksternals || [],
@@ -787,6 +787,19 @@ export const useAdminStore = create<AdminStore>()(
                 agtEntries: state.agtEntries || [],
               };
 
+              console.log('📤 Syncing to Neon:', JSON.stringify({
+                nikInternals: allData.nikInternals.length,
+                nikEksternals: allData.nikEksternals.length,
+                vendors: allData.vendors.length,
+                buyers: allData.buyers.length,
+                buyerDatabases: allData.buyerDatabases.length,
+                kontraks: allData.kontraks.length,
+                projects: allData.projects.length,
+                investors: allData.investors.length,
+                investorContracts: allData.investorContracts.length,
+                agtEntries: allData.agtEntries.length,
+              }));
+
               const res = await fetch('/api/data/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -794,19 +807,24 @@ export const useAdminStore = create<AdminStore>()(
               });
 
               if (!res.ok) {
+                const errText = await res.text();
+                console.error('❌ Sync failed:', res.status, errText);
                 set({ isSyncing: false });
                 return false;
               }
 
               const result = await res.json();
+              console.log('✅ Sync result:', result);
               set({ isSyncing: false });
               return result.success || false;
             } catch (error) {
+              console.error('❌ Sync error:', error);
               set({ isSyncing: false });
               return false;
             }
           },
 
+          // ==================== LOAD FROM NEON ====================
           loadFromNeon: async () => {
             try {
               const res = await fetch('/api/data/sync');
@@ -832,7 +850,7 @@ export const useAdminStore = create<AdminStore>()(
             } catch { return false; }
           },
 
-          // NIK Internal
+          // ==================== CRUD OPERATIONS ====================
           addNikInternal: (data) => {
             const nik = generateNikInternal(get().nikInternals, data.jabatanDivisi);
             const now = new Date().toISOString();
@@ -850,7 +868,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // NIK Eksternal
           addNikEksternal: (data) => {
             const nik = generateNikEksternal(get().nikEksternals, data.klasifikasi);
             const now = new Date().toISOString();
@@ -868,7 +885,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Vendor
           addVendor: (data) => {
             const vendorId = generateVendorId(get().vendors, data.provinsi);
             const now = new Date().toISOString();
@@ -886,7 +902,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Buyer
           addBuyer: (data) => {
             const buyerId = generateBuyerId(get().buyers, data.negara);
             const now = new Date().toISOString();
@@ -904,7 +919,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Buyer Database
           addBuyerDatabase: (data) => {
             const now = new Date().toISOString();
             const newItem: BuyerDatabaseEntry = { ...data, id: generateId(), createdAt: now, updatedAt: now };
@@ -921,7 +935,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Kontrak
           addKontrak: (data) => {
             const now = new Date().toISOString();
             const newItem: KontrakRegister = { ...data, id: generateId(), createdAt: now, updatedAt: now };
@@ -938,7 +951,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Project
           addProject: (data) => {
             const kodeProyek = generateKodeProyek(get().projects, data.namaProyek);
             const now = new Date().toISOString();
@@ -957,7 +969,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Investor
           addInvestor: (data) => {
             const project = get().projects.find(p => p.id === data.projectId);
             const nomorSurat = project ? generateNomorSuratInvestor(project.kodeProyek, get().investors) : `INV/UNKNOWN/${BULAN_ROMawi[new Date().getMonth()]}/${new Date().getFullYear()}/001`;
@@ -976,7 +987,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Investor Contract
           addInvestorContract: (data) => {
             const project = get().projects.find(p => p.id === data.projectId);
             const investor = get().investors.find(inv => inv.id === data.investorId);
@@ -996,7 +1006,6 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // AGT Entry
           addAgtEntry: (data) => {
             const kodeAgt = generateKodeAgt(get().agtEntries);
             const now = new Date().toISOString();
