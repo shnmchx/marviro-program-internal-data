@@ -786,6 +786,9 @@ export const useAdminStore = create<AdminStore>()(
                 investorContracts: state.investorContracts,
                 agtEntries: state.agtEntries,
               };
+
+              console.log('📤 Syncing to Neon...');
+
               const res = await fetch('/api/data/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -793,22 +796,24 @@ export const useAdminStore = create<AdminStore>()(
               });
 
               if (!res.ok) {
-                console.error('Sync failed:', res.status, res.statusText);
+                console.error('❌ Sync failed:', res.status, res.statusText);
                 set({ isSyncing: false });
                 return false;
               }
 
               const text = await res.text();
               if (!text) {
+                console.error('❌ Empty response');
                 set({ isSyncing: false });
                 return false;
               }
 
               const result = JSON.parse(text);
+              console.log('✅ Sync result:', result);
               set({ isSyncing: false });
               return result.success || false;
             } catch (error) {
-              console.error('Sync error:', error);
+              console.error('❌ Sync error:', error);
               set({ isSyncing: false });
               return false;
             }
@@ -816,16 +821,18 @@ export const useAdminStore = create<AdminStore>()(
 
           loadFromNeon: async () => {
             try {
+              console.log('📥 Loading from Neon...');
+
               const res = await fetch('/api/data/sync');
 
               if (!res.ok) {
-                console.warn('Load failed, using local data');
+                console.warn('⚠️ Load failed, using local data');
                 return false;
               }
 
               const text = await res.text();
               if (!text) {
-                console.warn('Empty response, using local data');
+                console.warn('⚠️ Empty response, using local data');
                 return false;
               }
 
@@ -833,7 +840,7 @@ export const useAdminStore = create<AdminStore>()(
               try {
                 result = JSON.parse(text);
               } catch {
-                console.warn('Invalid JSON response, using local data');
+                console.warn('⚠️ Invalid JSON, using local data');
                 return false;
               }
 
@@ -852,12 +859,13 @@ export const useAdminStore = create<AdminStore>()(
 
                 if (Object.keys(updates).length > 0) {
                   set(updates);
+                  console.log('✅ Loaded from Neon:', Object.keys(updates).join(', '));
                 }
                 return true;
               }
               return false;
             } catch (error) {
-              console.warn('Load error, using local data:', error);
+              console.warn('⚠️ Load error, using local data:', error);
               return false;
             }
           },
@@ -1046,7 +1054,7 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Export/Import
+          // Export/Import/Reset
           exportAllData: () => JSON.stringify(get(), null, 2),
           importAllData: (json: string) => {
             try {
