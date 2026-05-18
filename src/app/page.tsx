@@ -182,26 +182,54 @@ function PageContent() {
 // ==================== HOME PAGE ====================
 
 export default function HomePage() {
-  const { activePage } = useAdminStore();
+  const { activePage, loadFromNeon, isSyncing } = useAdminStore();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
 
+  // Inisialisasi: cek auth + load data dari Neon
   useEffect(() => {
-    const auth = localStorage.getItem('marviro-auth');
-    if (auth === 'true') {
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
+    const init = async () => {
+      try {
+        // Cek apakah sudah login
+        const auth = localStorage.getItem('marviro-auth');
+        if (auth === 'true') {
+          setIsAuthenticated(true);
+
+          // Load data dari Neon database
+          // Ini memastikan data selalu sync di semua device
+          const loaded = await loadFromNeon();
+          if (loaded) {
+            console.log('✅ Data loaded from Neon');
+          } else {
+            console.log('⚠️ Using local data (Neon not available)');
+          }
+        }
+      } catch (error) {
+        console.error('Init error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    init();
   }, []);
 
-  const handleLoginSuccess = () => {
+  // Handle login sukses
+  const handleLoginSuccess = async () => {
     localStorage.setItem('marviro-auth', 'true');
     setIsAuthenticated(true);
     setShowLogin(false);
     toast.success('Selamat datang!');
+
+    // Load data dari Neon setelah login
+    const loaded = await loadFromNeon();
+    if (loaded) {
+      toast.success('Data berhasil dimuat dari server');
+    }
   };
 
+  // Handle logout
   const handleLogout = () => {
     localStorage.removeItem('marviro-auth');
     setIsAuthenticated(false);
@@ -229,35 +257,50 @@ export default function HomePage() {
     settings: 'Pengaturan',
   };
 
+  // Loading screen
   if (isLoading) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-gray-200">
           <div className="text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-2xl mx-auto mb-4">MRV</div>
-            <p className="text-muted-foreground">Memuat...</p>
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-2xl mx-auto mb-4 animate-pulse">
+              MRV
+            </div>
+            <p className="text-muted-foreground">
+              {isSyncing ? 'Memuat data dari server...' : 'Memuat...'}
+            </p>
           </div>
         </div>
     );
   }
 
+  // Not authenticated - show landing page
   if (!isAuthenticated) {
     return (
         <>
           <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-gray-200 p-4">
             <div className="text-center w-full max-w-md">
               <div className="flex justify-center mb-6">
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-3xl shadow-lg">MRV</div>
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-3xl shadow-lg">
+                  MRV
+                </div>
               </div>
               <h1 className="text-2xl font-bold mb-2">PT Marviro Ekspor Indonesia</h1>
               <p className="text-muted-foreground mb-6">Sistem Administrasi & Monitoring</p>
-              <Button size="lg" onClick={() => setShowLogin(true)} className="px-8">Masuk ke Sistem</Button>
+              <Button size="lg" onClick={() => setShowLogin(true)} className="px-8">
+                Masuk ke Sistem
+              </Button>
             </div>
           </div>
-          <LoginModal open={showLogin} onOpenChange={setShowLogin} onLoginSuccess={handleLoginSuccess} />
+          <LoginModal
+              open={showLogin}
+              onOpenChange={setShowLogin}
+              onLoginSuccess={handleLoginSuccess}
+          />
         </>
     );
   }
 
+  // Authenticated - show dashboard
   return (
       <SidebarProvider>
         <AppSidebar />
