@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER ====================
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== NIK INTERNAL ====================
+model NikInternal {
+  id            String   @id @default(cuid())
+  nik           String
+  namaLengkap   String
+  jabatanDivisi String
+  status        String
+  tipeHubungan  String
+  tglMulai      String
+  tglBerakhir   String
+  payroll       String
+  keterangan    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ==================== NIK EKSTERNAL ====================
+model NikEksternal {
+  id           String   @id @default(cuid())
+  nik          String
+  namaLengkap  String
+  klasifikasi  String
+  peran        String
+  dasarKontrak String
+  nomorKontrak String
+  tglMulai     String
+  tglBerakhir  String
+  skemaImbalan String
+  pajak        String
+  status       String
+  keterangan   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ==================== VENDOR ====================
+model Vendor {
+  id             String   @id @default(cuid())
+  vendorId       String
+  tglRegistrasi  String
+  namaSupplier   String
+  pic            String
+  provinsi       String
+  komoditas      String
+  kapasitasBulan String
+  noHp           String
+  hasilAudit     String
+  status         String
+  keterangan     String
+  createdAt      DateTime @default(now())
+}
+
+// ==================== BUYER ====================
+model Buyer {
+  id               String   @id @default(cuid())
+  buyerId          String
+  tglRegistrasi    String
+  namaPerusahaan   String
+  pic              String
+  negara           String
+  alamatLengkap    String
+  email            String
+  noHp             String
+  komoditasMinat   String
+  metodePembayaran String
+  status           String
+  keterangan       String
+  createdAt        DateTime @default(now())
+}
+
+// ==================== KONTRAK ====================
+model Kontrak {
+  id           String   @id @default(cuid())
+  nomorKontrak String
+  jenisKontrak String
+  klasifikasi  String
+  namaPihak    String
+  referensiId  String
+  objekKontrak String
+  komoditas    String
+  tglMulai     String
+  tglBerakhir  String
+  status       String
+  keterangan   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ==================== BUYER DATABASE ====================
+model BuyerDatabase {
+  id              String   @id @default(cuid())
+  year            Int
+  month           Int
+  company         String
+  contact         String
+  country         String
+  productInterest String
+  quantity        String
+  terms           String
+  email           String
+  phone           String
+  status          String
+  sumberData      String   @default("PT Marviro")
+  linkedAgtId     String   @default("")
+  lastFollowUp    String
+  nextFollowUp    String
+  catatan         String
+  catatanDetail   String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==================== PROJECT ====================
+model Project {
+  id                      String   @id @default(cuid())
+  namaProyek              String
+  deskripsi               String
+  kodeProyek              String
+  minInvestor             Int
+  maxInvestor             Int
+  minInvestasiPerInvestor Float
+  maxInvestasiPerInvestor Float
+  totalNilaiProyek        Float
+  omzetKotor              Float
+  biayaOperasional        Float
+  labaBersih              Float
+  statusProyek            String
+  tanggalMulai            String
+  tanggalSelesai          String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+// ==================== INVESTOR ====================
+model Investor {
+  id                  String   @id @default(cuid())
+  projectId           String
+  nomorSurat          String
+  namaInvestor        String
+  company             String?
+  email               String
+  phone               String
+  alamat              String
+  npwp                String?
+  nilaiInvestasi      Float
+  persentaseBagiHasil Float
+  tanggalMulai        String
+  tanggalSelesai      String
+  statusInvestasi     String
+  catatan             String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ==================== INVESTOR CONTRACT ====================
+model InvestorContract {
+  id                  String   @id @default(cuid())
+  investorId          String
+  projectId           String
+  nomorKontrak        String
+  nomorSuratInvestor  String
+  nilaiInvestasi      Float
+  persentaseBagiHasil Float
+  jangkaWaktu         Int
+  tanggalMulai        String
+  tanggalSelesai      String
+  caraPembayaran      String
+  statusKontrak       String
+  syaratKetentuan     String
+  catatan             String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ==================== AGT ENTRY ====================
+model AgtEntry {
+  id               String   @id @default(cuid())
+  kodeAgt          String
+  namaAgt          String
+  nikEksternal     String
+  nomorKontrak     String
+  fokusProduk      String   @default("[]")
+  fokusMarket      String   @default("[]")
+  wilayahFokus     String   @default("[]")
+  statusAgt        String
+  tanggalBergabung String
+  catatan          String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
