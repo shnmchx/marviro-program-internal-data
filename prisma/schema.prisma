@@ -194,7 +194,7 @@ model InvestorContract {
 
 // ==================== AGT ENTRY ====================
 model AgtEntry {
-  id               String   @id @default(cuid())
+  id               String   @id
   kodeAgt          String
   namaAgt          String
   nikEksternal     String
