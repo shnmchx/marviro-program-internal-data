@@ -768,26 +768,24 @@ export const useAdminStore = create<AdminStore>()(
           activePage: 'dashboard',
           setActivePage: (page) => set({ activePage: page }),
 
-          // ==================== NEON SYNC ====================
           syncToNeon: async () => {
             if (get().isSyncing) return false;
             set({ isSyncing: true });
-            try {
-              const state = get();
-              const allData = {
-                nikInternals: state.nikInternals,
-                nikEksternals: state.nikEksternals,
-                vendors: state.vendors,
-                buyers: state.buyers,
-                buyerDatabases: state.buyerDatabases,
-                kontraks: state.kontraks,
-                projects: state.projects,
-                investors: state.investors,
-                investorContracts: state.investorContracts,
-                agtEntries: state.agtEntries,
-              };
 
-              console.log('📤 Syncing to Neon...');
+            try {
+              const state = get(); // Ambil state TERBARU
+              const allData = {
+                nikInternals: state.nikInternals || [],
+                nikEksternals: state.nikEksternals || [],
+                vendors: state.vendors || [],
+                buyers: state.buyers || [],
+                buyerDatabases: state.buyerDatabases || [],
+                kontraks: state.kontraks || [],
+                projects: state.projects || [],
+                investors: state.investors || [],
+                investorContracts: state.investorContracts || [],
+                agtEntries: state.agtEntries || [],
+              };
 
               const res = await fetch('/api/data/sync', {
                 method: 'POST',
@@ -796,24 +794,14 @@ export const useAdminStore = create<AdminStore>()(
               });
 
               if (!res.ok) {
-                console.error('❌ Sync failed:', res.status, res.statusText);
                 set({ isSyncing: false });
                 return false;
               }
 
-              const text = await res.text();
-              if (!text) {
-                console.error('❌ Empty response');
-                set({ isSyncing: false });
-                return false;
-              }
-
-              const result = JSON.parse(text);
-              console.log('✅ Sync result:', result);
+              const result = await res.json();
               set({ isSyncing: false });
               return result.success || false;
             } catch (error) {
-              console.error('❌ Sync error:', error);
               set({ isSyncing: false });
               return false;
             }
@@ -821,72 +809,44 @@ export const useAdminStore = create<AdminStore>()(
 
           loadFromNeon: async () => {
             try {
-              console.log('📥 Loading from Neon...');
-
               const res = await fetch('/api/data/sync');
-
-              if (!res.ok) {
-                console.warn('⚠️ Load failed, using local data');
-                return false;
-              }
-
-              const text = await res.text();
-              if (!text) {
-                console.warn('⚠️ Empty response, using local data');
-                return false;
-              }
-
-              let result;
-              try {
-                result = JSON.parse(text);
-              } catch {
-                console.warn('⚠️ Invalid JSON, using local data');
-                return false;
-              }
-
+              if (!res.ok) return false;
+              const result = await res.json();
               if (result.success && result.data) {
-                const updates: any = {};
-                if (result.data.nikInternals?.length) updates.nikInternals = result.data.nikInternals;
-                if (result.data.nikEksternals?.length) updates.nikEksternals = result.data.nikEksternals;
-                if (result.data.vendors?.length) updates.vendors = result.data.vendors;
-                if (result.data.buyers?.length) updates.buyers = result.data.buyers;
-                if (result.data.buyerDatabases?.length) updates.buyerDatabases = result.data.buyerDatabases;
-                if (result.data.kontraks?.length) updates.kontraks = result.data.kontraks;
-                if (result.data.projects?.length) updates.projects = result.data.projects;
-                if (result.data.investors?.length) updates.investors = result.data.investors;
-                if (result.data.investorContracts?.length) updates.investorContracts = result.data.investorContracts;
-                if (result.data.agtEntries?.length) updates.agtEntries = result.data.agtEntries;
-
-                if (Object.keys(updates).length > 0) {
-                  set(updates);
-                  console.log('✅ Loaded from Neon:', Object.keys(updates).join(', '));
-                }
+                const d = result.data;
+                set({
+                  nikInternals: d.nikInternals?.length ? d.nikInternals : get().nikInternals,
+                  nikEksternals: d.nikEksternals?.length ? d.nikEksternals : get().nikEksternals,
+                  vendors: d.vendors?.length ? d.vendors : get().vendors,
+                  buyers: d.buyers?.length ? d.buyers : get().buyers,
+                  buyerDatabases: d.buyerDatabases?.length ? d.buyerDatabases : get().buyerDatabases,
+                  kontraks: d.kontraks?.length ? d.kontraks : get().kontraks,
+                  projects: d.projects?.length ? d.projects : get().projects,
+                  investors: d.investors?.length ? d.investors : get().investors,
+                  investorContracts: d.investorContracts?.length ? d.investorContracts : get().investorContracts,
+                  agtEntries: d.agtEntries?.length ? d.agtEntries : get().agtEntries,
+                });
                 return true;
               }
               return false;
-            } catch (error) {
-              console.warn('⚠️ Load error, using local data:', error);
-              return false;
-            }
+            } catch { return false; }
           },
-
-          // ==================== CRUD OPERATIONS ====================
 
           // NIK Internal
           addNikInternal: (data) => {
             const nik = generateNikInternal(get().nikInternals, data.jabatanDivisi);
             const now = new Date().toISOString();
             const newItem: NikInternal = { ...data, id: generateId(), nik, createdAt: now, updatedAt: now };
-            set((state) => ({ nikInternals: [...state.nikInternals, newItem] }));
+            set((s) => ({ nikInternals: [...s.nikInternals, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateNikInternal: (id, data) => {
-            set((state) => ({ nikInternals: state.nikInternals.map((item) => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item) }));
+            set((s) => ({ nikInternals: s.nikInternals.map(i => i.id === id ? { ...i, ...data, updatedAt: new Date().toISOString() } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteNikInternal: (id) => {
-            set((state) => ({ nikInternals: state.nikInternals.filter((item) => item.id !== id) }));
+            set((s) => ({ nikInternals: s.nikInternals.filter(i => i.id !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -895,16 +855,16 @@ export const useAdminStore = create<AdminStore>()(
             const nik = generateNikEksternal(get().nikEksternals, data.klasifikasi);
             const now = new Date().toISOString();
             const newItem: NikEksternal = { ...data, id: generateId(), nik, createdAt: now, updatedAt: now };
-            set((state) => ({ nikEksternals: [...state.nikEksternals, newItem] }));
+            set((s) => ({ nikEksternals: [...s.nikEksternals, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateNikEksternal: (id, data) => {
-            set((state) => ({ nikEksternals: state.nikEksternals.map((item) => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item) }));
+            set((s) => ({ nikEksternals: s.nikEksternals.map(i => i.id === id ? { ...i, ...data, updatedAt: new Date().toISOString() } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteNikEksternal: (id) => {
-            set((state) => ({ nikEksternals: state.nikEksternals.filter((item) => item.id !== id) }));
+            set((s) => ({ nikEksternals: s.nikEksternals.filter(i => i.id !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -913,16 +873,16 @@ export const useAdminStore = create<AdminStore>()(
             const vendorId = generateVendorId(get().vendors, data.provinsi);
             const now = new Date().toISOString();
             const newItem: VendorRegister = { ...data, id: generateId(), vendorId, createdAt: now };
-            set((state) => ({ vendors: [...state.vendors, newItem] }));
+            set((s) => ({ vendors: [...s.vendors, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateVendor: (id, data) => {
-            set((state) => ({ vendors: state.vendors.map((item) => item.id === id ? { ...item, ...data } : item) }));
+            set((s) => ({ vendors: s.vendors.map(i => i.id === id ? { ...i, ...data } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteVendor: (id) => {
-            set((state) => ({ vendors: state.vendors.filter((item) => item.id !== id) }));
+            set((s) => ({ vendors: s.vendors.filter(i => i.id !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -931,16 +891,16 @@ export const useAdminStore = create<AdminStore>()(
             const buyerId = generateBuyerId(get().buyers, data.negara);
             const now = new Date().toISOString();
             const newItem: BuyerRegister = { ...data, id: generateId(), buyerId, createdAt: now };
-            set((state) => ({ buyers: [...state.buyers, newItem] }));
+            set((s) => ({ buyers: [...s.buyers, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateBuyer: (id, data) => {
-            set((state) => ({ buyers: state.buyers.map((item) => item.id === id ? { ...item, ...data } : item) }));
+            set((s) => ({ buyers: s.buyers.map(i => i.id === id ? { ...i, ...data } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteBuyer: (id) => {
-            set((state) => ({ buyers: state.buyers.filter((item) => item.id !== id) }));
+            set((s) => ({ buyers: s.buyers.filter(i => i.id !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -948,16 +908,16 @@ export const useAdminStore = create<AdminStore>()(
           addBuyerDatabase: (data) => {
             const now = new Date().toISOString();
             const newItem: BuyerDatabaseEntry = { ...data, id: generateId(), createdAt: now, updatedAt: now };
-            set((state) => ({ buyerDatabases: [...state.buyerDatabases, newItem] }));
+            set((s) => ({ buyerDatabases: [...s.buyerDatabases, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateBuyerDatabase: (id, data) => {
-            set((state) => ({ buyerDatabases: state.buyerDatabases.map((item) => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item) }));
+            set((s) => ({ buyerDatabases: s.buyerDatabases.map(i => i.id === id ? { ...i, ...data, updatedAt: new Date().toISOString() } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteBuyerDatabase: (id) => {
-            set((state) => ({ buyerDatabases: state.buyerDatabases.filter((item) => item.id !== id) }));
+            set((s) => ({ buyerDatabases: s.buyerDatabases.filter(i => i.id !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -965,16 +925,16 @@ export const useAdminStore = create<AdminStore>()(
           addKontrak: (data) => {
             const now = new Date().toISOString();
             const newItem: KontrakRegister = { ...data, id: generateId(), createdAt: now, updatedAt: now };
-            set((state) => ({ kontraks: [...state.kontraks, newItem] }));
+            set((s) => ({ kontraks: [...s.kontraks, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateKontrak: (id, data) => {
-            set((state) => ({ kontraks: state.kontraks.map((item) => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item) }));
+            set((s) => ({ kontraks: s.kontraks.map(i => i.id === id ? { ...i, ...data, updatedAt: new Date().toISOString() } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteKontrak: (id) => {
-            set((state) => ({ kontraks: state.kontraks.filter((item) => item.id !== id) }));
+            set((s) => ({ kontraks: s.kontraks.filter(i => i.id !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -984,16 +944,16 @@ export const useAdminStore = create<AdminStore>()(
             const now = new Date().toISOString();
             const labaBersih = (data.omzetKotor || 0) - (data.biayaOperasional || 0);
             const newItem: ProjectEntry = { ...data, id: generateId(), kodeProyek, labaBersih, createdAt: now, updatedAt: now };
-            set((state) => ({ projects: [...state.projects, newItem] }));
+            set((s) => ({ projects: [...s.projects, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateProject: (id, data) => {
-            set((state) => ({ projects: state.projects.map((item) => { if (item.id !== id) return item; const updated = { ...item, ...data, updatedAt: new Date().toISOString() }; if (data.omzetKotor !== undefined || data.biayaOperasional !== undefined) { updated.labaBersih = (updated.omzetKotor || 0) - (updated.biayaOperasional || 0); } return updated; }) }));
+            set((s) => ({ projects: s.projects.map(i => { if (i.id !== id) return i; const u = { ...i, ...data, updatedAt: new Date().toISOString() }; if (data.omzetKotor !== undefined || data.biayaOperasional !== undefined) u.labaBersih = (u.omzetKotor || 0) - (u.biayaOperasional || 0); return u; }) }));
             get().syncToNeon().catch(() => {});
           },
           deleteProject: (id) => {
-            set((state) => ({ projects: state.projects.filter((item) => item.id !== id), investors: state.investors.filter((item) => item.projectId !== id), investorContracts: state.investorContracts.filter((item) => item.projectId !== id) }));
+            set((s) => ({ projects: s.projects.filter(i => i.id !== id), investors: s.investors.filter(i => i.projectId !== id), investorContracts: s.investorContracts.filter(i => i.projectId !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -1003,16 +963,16 @@ export const useAdminStore = create<AdminStore>()(
             const nomorSurat = project ? generateNomorSuratInvestor(project.kodeProyek, get().investors) : `INV/UNKNOWN/${BULAN_ROMawi[new Date().getMonth()]}/${new Date().getFullYear()}/001`;
             const now = new Date().toISOString();
             const newItem: InvestorEntry = { ...data, id: generateId(), nomorSurat, createdAt: now, updatedAt: now };
-            set((state) => ({ investors: [...state.investors, newItem] }));
+            set((s) => ({ investors: [...s.investors, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateInvestor: (id, data) => {
-            set((state) => ({ investors: state.investors.map((item) => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item) }));
+            set((s) => ({ investors: s.investors.map(i => i.id === id ? { ...i, ...data, updatedAt: new Date().toISOString() } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteInvestor: (id) => {
-            set((state) => ({ investors: state.investors.filter((item) => item.id !== id), investorContracts: state.investorContracts.filter((item) => item.investorId !== id) }));
+            set((s) => ({ investors: s.investors.filter(i => i.id !== id), investorContracts: s.investorContracts.filter(i => i.investorId !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -1023,16 +983,16 @@ export const useAdminStore = create<AdminStore>()(
             const nomorKontrak = project ? generateNomorKontrakInvestor(project.kodeProyek, get().investorContracts) : `KTR/UNKNOWN/001/${BULAN_ROMawi[new Date().getMonth()]}/${new Date().getFullYear()}`;
             const now = new Date().toISOString();
             const newItem: InvestorContract = { ...data, id: generateId(), nomorKontrak, nomorSuratInvestor: investor?.nomorSurat || '', createdAt: now, updatedAt: now };
-            set((state) => ({ investorContracts: [...state.investorContracts, newItem] }));
+            set((s) => ({ investorContracts: [...s.investorContracts, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateInvestorContract: (id, data) => {
-            set((state) => ({ investorContracts: state.investorContracts.map((item) => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item) }));
+            set((s) => ({ investorContracts: s.investorContracts.map(i => i.id === id ? { ...i, ...data, updatedAt: new Date().toISOString() } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteInvestorContract: (id) => {
-            set((state) => ({ investorContracts: state.investorContracts.filter((item) => item.id !== id) }));
+            set((s) => ({ investorContracts: s.investorContracts.filter(i => i.id !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
@@ -1041,20 +1001,19 @@ export const useAdminStore = create<AdminStore>()(
             const kodeAgt = generateKodeAgt(get().agtEntries);
             const now = new Date().toISOString();
             const newItem: AgtEntry = { ...data, id: generateId(), kodeAgt, createdAt: now, updatedAt: now };
-            set((state) => ({ agtEntries: [...state.agtEntries, newItem] }));
+            set((s) => ({ agtEntries: [...s.agtEntries, newItem] }));
             get().syncToNeon().catch(() => {});
             return newItem;
           },
           updateAgtEntry: (id, data) => {
-            set((state) => ({ agtEntries: state.agtEntries.map((item) => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item) }));
+            set((s) => ({ agtEntries: s.agtEntries.map(i => i.id === id ? { ...i, ...data, updatedAt: new Date().toISOString() } : i) }));
             get().syncToNeon().catch(() => {});
           },
           deleteAgtEntry: (id) => {
-            set((state) => ({ agtEntries: state.agtEntries.filter((item) => item.id !== id) }));
+            set((s) => ({ agtEntries: s.agtEntries.filter(i => i.id !== id) }));
             get().syncToNeon().catch(() => {});
           },
 
-          // Export/Import/Reset
           exportAllData: () => JSON.stringify(get(), null, 2),
           importAllData: (json: string) => {
             try {
