@@ -770,6 +770,7 @@ export const useAdminStore = create<AdminStore>()(
 
           // ==================== NEON SYNC ====================
           syncToNeon: async () => {
+            if (get().isSyncing) return false;
             set({ isSyncing: true });
             try {
               const state = get();
@@ -790,11 +791,24 @@ export const useAdminStore = create<AdminStore>()(
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'all', data: allData }),
               });
-              const result = await res.json();
+
+              if (!res.ok) {
+                console.error('Sync failed:', res.status, res.statusText);
+                set({ isSyncing: false });
+                return false;
+              }
+
+              const text = await res.text();
+              if (!text) {
+                set({ isSyncing: false });
+                return false;
+              }
+
+              const result = JSON.parse(text);
               set({ isSyncing: false });
-              return result.success;
+              return result.success || false;
             } catch (error) {
-              console.error('Sync failed:', error);
+              console.error('Sync error:', error);
               set({ isSyncing: false });
               return false;
             }
@@ -803,25 +817,47 @@ export const useAdminStore = create<AdminStore>()(
           loadFromNeon: async () => {
             try {
               const res = await fetch('/api/data/sync');
-              const result = await res.json();
+
+              if (!res.ok) {
+                console.warn('Load failed, using local data');
+                return false;
+              }
+
+              const text = await res.text();
+              if (!text) {
+                console.warn('Empty response, using local data');
+                return false;
+              }
+
+              let result;
+              try {
+                result = JSON.parse(text);
+              } catch {
+                console.warn('Invalid JSON response, using local data');
+                return false;
+              }
+
               if (result.success && result.data) {
-                set({
-                  nikInternals: result.data.nikInternals || get().nikInternals,
-                  nikEksternals: result.data.nikEksternals || get().nikEksternals,
-                  vendors: result.data.vendors || get().vendors,
-                  buyers: result.data.buyers || get().buyers,
-                  buyerDatabases: result.data.buyerDatabases || get().buyerDatabases,
-                  kontraks: result.data.kontraks || get().kontraks,
-                  projects: result.data.projects || get().projects,
-                  investors: result.data.investors || get().investors,
-                  investorContracts: result.data.investorContracts || get().investorContracts,
-                  agtEntries: result.data.agtEntries || get().agtEntries,
-                });
+                const updates: any = {};
+                if (result.data.nikInternals?.length) updates.nikInternals = result.data.nikInternals;
+                if (result.data.nikEksternals?.length) updates.nikEksternals = result.data.nikEksternals;
+                if (result.data.vendors?.length) updates.vendors = result.data.vendors;
+                if (result.data.buyers?.length) updates.buyers = result.data.buyers;
+                if (result.data.buyerDatabases?.length) updates.buyerDatabases = result.data.buyerDatabases;
+                if (result.data.kontraks?.length) updates.kontraks = result.data.kontraks;
+                if (result.data.projects?.length) updates.projects = result.data.projects;
+                if (result.data.investors?.length) updates.investors = result.data.investors;
+                if (result.data.investorContracts?.length) updates.investorContracts = result.data.investorContracts;
+                if (result.data.agtEntries?.length) updates.agtEntries = result.data.agtEntries;
+
+                if (Object.keys(updates).length > 0) {
+                  set(updates);
+                }
                 return true;
               }
               return false;
             } catch (error) {
-              console.error('Load failed:', error);
+              console.warn('Load error, using local data:', error);
               return false;
             }
           },
@@ -1010,13 +1046,8 @@ export const useAdminStore = create<AdminStore>()(
             get().syncToNeon().catch(() => {});
           },
 
-          // Export/Import/Reset
-          exportAllData: () => JSON.stringify({
-            ...get(),
-            exportedAt: new Date().toISOString(),
-            version: '3.0.0',
-          }, null, 2),
-
+          // Export/Import
+          exportAllData: () => JSON.stringify(get(), null, 2),
           importAllData: (json: string) => {
             try {
               const data = JSON.parse(json);
@@ -1034,7 +1065,6 @@ export const useAdminStore = create<AdminStore>()(
               return true;
             } catch { return false; }
           },
-
           resetAllData: () => set({
             nikInternals: initialNikInternals, nikEksternals: initialNikEksternals,
             vendors: initialVendors, buyers: [], buyerDatabases: [],
